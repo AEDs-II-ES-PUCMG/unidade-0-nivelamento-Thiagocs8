@@ -1,122 +1,231 @@
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 
+/**
+ * Representa um pedido de compra.
+ * Armazena itens de pedido (produto + quantidade + preço congelado),
+ * data do pedido e forma de pagamento.
+ */
 public class Pedido {
 
-	/** Quantidade máxima de produtos de um pedido */
-	private static final int MAX_PRODUTOS = 10;
-	
-	/** Porcentagem de desconto para pagamentos à vista */
-	private static final double DESCONTO_PG_A_VISTA = 0.15;
-	
-	/** Vetor para armazenar os produtos do pedido */
-	private Produto[] produtos;
-	
-	/** Data de criação do pedido */
-	private LocalDate dataPedido;
-	
-	/** Indica a quantidade total de produtos no pedido até o momento */
-	private int quantProdutos = 0;
-	
-	/** Indica a forma de pagamento do pedido sendo: 1, pagamento à vista; 2, pagamento parcelado */
-	private int formaDePagamento;
-	
-	/** Construtor do pedido.
-	 *  Deve criar o vetor de produtos do pedido, 
-	 *  armazenar a data e a forma de pagamento informadas para o pedido. 
-	 */  
-	public Pedido(LocalDate dataPedido, int formaDePagamento) {
-		
-		produtos = new Produto[MAX_PRODUTOS];
-		quantProdutos = 0;
-		this.dataPedido = dataPedido;
-		this.formaDePagamento = formaDePagamento;
-	}
-	
-	/**
-     * Inclui um produto neste pedido e aumenta a quantidade de produtos armazenados no pedido até o momento.
-     * @param novo O produto a ser incluído no pedido
-     * @return true/false indicando se a inclusão do produto no pedido foi realizada com sucesso.
+    // Constantes
+    private static final int MAX_PRODUTOS = 10;
+    private static final double DESCONTO_PG_A_VISTA = 0.15;
+
+    // Formas de pagamento
+    public static final int PAGAMENTO_A_VISTA  = 1;
+    public static final int PAGAMENTO_A_PRAZO  = 2;
+
+    // Atributos
+    private ItemDePedido[] itens;
+    private LocalDate dataPedido;
+    private int quantProdutos;
+    private int formaDePagamento;
+
+    /**
+     * Cria um novo pedido.
+     *
+     * @param dataPedido      Data do pedido
+     * @param formaDePagamento 1 = à vista, 2 = a prazo
      */
-	public boolean incluirProduto(Produto novo) {
-		
-		if (quantProdutos < MAX_PRODUTOS) {
-			produtos[quantProdutos++] = novo;
-			return true;
-		}
-		return false;
-	}
-	
-	/**
-     * Calcula e retorna o valor final do pedido (soma do valor de venda de todos os produtos do pedido).
-     * Caso a forma de pagamento do pedido seja à vista, aplica o desconto correspondente.
-     * @return Valor final do pedido (double)
+    public Pedido(LocalDate dataPedido, int formaDePagamento) {
+        this.dataPedido = dataPedido;
+        this.formaDePagamento = formaDePagamento;
+        this.itens = new ItemDePedido[MAX_PRODUTOS];
+        this.quantProdutos = 0;
+    }
+
+    public LocalDate getDataPedido() {
+        return dataPedido;
+    }
+
+    public int getFormaDePagamento() {
+        return formaDePagamento;
+    }
+
+    public int getQuantProdutos() {
+        return quantProdutos;
+    }
+
+    public ItemDePedido[] getItens() {
+        return itens;
+    }
+
+    /**
+     * Inclui um produto no pedido criando um ItemDePedido.
+     * O preço de venda é capturado (congelado) no momento da chamada.
+     *
+     * @param novo Produto a ser incluído (quantidade = 1)
+     * @return true se incluído com sucesso, false se o vetor estiver cheio
      */
-	public double valorFinal() {
-		
-		double valorPedido = 0;
-		
-		for (int i = 0; i < quantProdutos; i++) {
-			valorPedido += produtos[i].valorDeVenda();
-		}
-		
-		if (formaDePagamento == 1) {
-			valorPedido = valorPedido * (1.0 - DESCONTO_PG_A_VISTA);
-		}
-		return valorPedido;
-	}
-	
-	/**
-     * Representação, em String, do pedido.
-     * Contém um cabeçalho com sua data e o número de produtos no pedido.
-     * Depois, em cada linha, a descrição de cada produto do pedido.
-     * Ao final, mostra a forma de pagamento, o percentual de desconto (se for o caso) e o valor a ser pago pelo pedido.
-     * Exemplo:
-     * Data do pedido: 25/08/2025
-     * Pedido com 2 produtos.
-     * Produtos no pedido:
-     * NOME: Iogurte: R$ 8.00
-     * Válido até: 29/08/2025
-     * NOME: Guardanapos: R$ 2.75
-     * Pedido pago à vista. Percentual de desconto: 15,00%
-     * Valor total do pedido: R$ 10.75 
-     * @return Uma string contendo dados do pedido conforme especificado (cabeçalho, detalhes, forma de pagamento,
-     * percentual de desconto - se for o caso - e valor a pagar)
+    public boolean incluirProduto(Produto novo) {
+        if (quantProdutos >= MAX_PRODUTOS) return false;
+
+        // Verificar se o produto já existe no pedido; se sim, incrementa quantidade
+        for (int i = 0; i < quantProdutos; i++) {
+            if (itens[i] != null && itens[i].getProduto().equals(novo)) {
+                itens[i].setQuantidade(itens[i].getQuantidade() + 1);
+                return true;
+            }
+        }
+
+        // Novo produto: congela o preço de venda atual
+        itens[quantProdutos] = new ItemDePedido(novo, 1, novo.valorDeVenda());
+        quantProdutos++;
+        return true;
+    }
+
+    /**
+     * Calcula o valor final do pedido, aplicando desconto à vista quando aplicável.
+     *
+     * @return Valor total do pedido
      */
-	@Override
-	public String toString() {
-		
-		StringBuilder stringPedido = new StringBuilder();
-		DateTimeFormatter formatoData = DateTimeFormatter.ofPattern("dd/MM/yyyy");
-		
-		stringPedido.append("Data do pedido:" + formatoData.format(dataPedido) + "\n");
-		
-		stringPedido.append("Pedido com " + quantProdutos + " produtos.\n");
-		stringPedido.append("Produtos no pedido:\n");
-		for (int i = 0; i < quantProdutos; i++ ) {
-			stringPedido.append(produtos[i].toString() + "\n");
-		}
-		
-		stringPedido.append("Pedido pago ");
-		if (formaDePagamento == 1) {
-			stringPedido.append("à vista. Percentual de desconto: " + String.format("%.2f", DESCONTO_PG_A_VISTA * 100) + "%\n");
-		} else {
-			stringPedido.append("parcelado.\n");
-		}
-		
-		stringPedido.append("Valor total do pedido: R$ " + String.format("%.2f", valorFinal()));
-		
-		return stringPedido.toString();
-	}
-	
-	/**
-     * Igualdade de pedidos: caso possuam a mesma data. 
-     * @param obj Outro pedido a ser comparado 
-     * @return booleano true/false conforme o parâmetro possua a data igual ou não a este pedido.
+    public double valorFinal() {
+        double total = 0;
+        for (int i = 0; i < quantProdutos; i++) {
+            if (itens[i] != null) {
+                total += itens[i].getPrecoVenda() * itens[i].getQuantidade();
+            }
+        }
+        if (formaDePagamento == PAGAMENTO_A_VISTA) {
+            total *= (1.0 - DESCONTO_PG_A_VISTA);
+        }
+        return total;
+    }
+
+    /**
+     * Mescla outro pedido neste pedido (operação atômica).
+     * - Produtos já existentes têm sua quantidade somada (menor preço prevalece).
+     * - Produtos novos são inseridos nas posições livres do vetor.
+     * - Se não houver espaço para todos os produtos novos, lança IllegalStateException
+     *   e nenhuma alteração é realizada.
+     * - Ao final, o pedido secundário é esvaziado.
+     *
+     * @param outroPedido Pedido a ser incorporado neste
+     * @throws IllegalStateException se a capacidade máxima for excedida
      */
+    public void mesclarPedido(Pedido outroPedido) {
+        // Contar quantos itens do outroPedido são produtos novos (não existem neste)
+        int novosItens = 0;
+        for (int i = 0; i < outroPedido.quantProdutos; i++) {
+            ItemDePedido itemSecundario = outroPedido.itens[i];
+            if (itemSecundario == null) continue;
+
+            boolean jaExiste = false;
+            for (int j = 0; j < this.quantProdutos; j++) {
+                if (this.itens[j] != null && this.itens[j].equals(itemSecundario)) {
+                    jaExiste = true;
+                    break;
+                }
+            }
+            if (!jaExiste) novosItens++;
+        }
+
+        // Verificar capacidade antes de qualquer alteração (operação atômica)
+        if (this.quantProdutos + novosItens > MAX_PRODUTOS) {
+            throw new IllegalStateException(
+                "Capacidade máxima excedida: não é possível mesclar os pedidos. " +
+                "Limite de " + MAX_PRODUTOS + " itens por pedido.");
+        }
+
+        // Realizar a mesclagem
+        for (int i = 0; i < outroPedido.quantProdutos; i++) {
+            ItemDePedido itemSecundario = outroPedido.itens[i];
+            if (itemSecundario == null) continue;
+
+            boolean encontrado = false;
+            for (int j = 0; j < this.quantProdutos; j++) {
+                if (this.itens[j] != null && this.itens[j].equals(itemSecundario)) {
+                    // Produto já existe: somar quantidade e manter o menor preço
+                    this.itens[j].setQuantidade(
+                        this.itens[j].getQuantidade() + itemSecundario.getQuantidade());
+                    if (itemSecundario.getPrecoVenda() < this.itens[j].getPrecoVenda()) {
+                        this.itens[j].setPrecoVenda(itemSecundario.getPrecoVenda());
+                    }
+                    encontrado = true;
+                    break;
+                }
+            }
+
+            if (!encontrado) {
+                // Produto novo: inserir na próxima posição livre
+                this.itens[this.quantProdutos] = itemSecundario;
+                this.quantProdutos++;
+            }
+        }
+
+        // Esvaziar o pedido secundário
+        for (int i = 0; i < outroPedido.quantProdutos; i++) {
+            outroPedido.itens[i] = null;
+        }
+        outroPedido.quantProdutos = 0;
+    }
+
+    /**
+     * Imprime o recibo/cupom fiscal do pedido no terminal.
+     * Aplica desconto de 5% no subtotal de itens com quantidade > 10.
+     */
+    public void imprimirRecibo() {
+        DateTimeFormatter fmt = DateTimeFormatter.ofPattern("dd/MM/yyyy");
+        String formaPgto = (formaDePagamento == PAGAMENTO_A_VISTA) ? "À Vista" : "A Prazo";
+
+        System.out.println("============================================");
+        System.out.println("           CUPOM FISCAL - RECIBO           ");
+        System.out.println("============================================");
+        System.out.printf("Data: %-20s Pagamento: %s%n",
+                dataPedido.format(fmt), formaPgto);
+        System.out.println("--------------------------------------------");
+        System.out.printf("%-20s %5s %10s %12s%n",
+                "Produto", "Qtd", "Unit (R$)", "Subtotal(R$)");
+        System.out.println("--------------------------------------------");
+
+        double totalGeral = 0;
+        for (int i = 0; i < quantProdutos; i++) {
+            if (itens[i] == null) continue;
+
+            String nome = itens[i].getProduto().getDescricao();
+            int qtd = itens[i].getQuantidade();
+            double unit = itens[i].getPrecoVenda();
+            double subtotal = unit * qtd;
+
+            // Desconto de 5% para itens com quantidade > 10
+            boolean temDesconto = qtd > 10;
+            if (temDesconto) subtotal *= 0.95;
+
+            totalGeral += subtotal;
+
+            System.out.printf("%-20s %5d %10.2f %12.2f%s%n",
+                    nome, qtd, unit, subtotal,
+                    temDesconto ? " (-5%)" : "");
+        }
+
+        System.out.println("--------------------------------------------");
+        System.out.printf("%-38s %12.2f%n", "TOTAL GERAL (sem desconto pgto):", totalGeral);
+
+        if (formaDePagamento == PAGAMENTO_A_VISTA) {
+            double totalComDesconto = totalGeral * (1.0 - DESCONTO_PG_A_VISTA);
+            System.out.printf("%-38s %12.2f%n",
+                    "DESCONTO À VISTA (15%):", totalGeral * DESCONTO_PG_A_VISTA);
+            System.out.printf("%-38s %12.2f%n", "TOTAL A PAGAR:", totalComDesconto);
+        } else {
+            System.out.printf("%-38s %12.2f%n", "TOTAL A PAGAR:", totalGeral);
+        }
+
+        System.out.println("============================================");
+    }
+
+    @Override
+    public String toString() {
+        DateTimeFormatter fmt = DateTimeFormatter.ofPattern("dd/MM/yyyy");
+        return String.format("Pedido[data=%s, itens=%d, total=R$ %.2f]",
+                dataPedido.format(fmt), quantProdutos, valorFinal());
+    }
+
     @Override
     public boolean equals(Object obj) {
-        Pedido outro = (Pedido)obj;
-        return this.dataPedido.equals(outro.dataPedido);
+        if (!(obj instanceof Pedido)) return false;
+        Pedido outro = (Pedido) obj;
+        return this.dataPedido.equals(outro.dataPedido)
+                && this.formaDePagamento == outro.formaDePagamento;
     }
 }
